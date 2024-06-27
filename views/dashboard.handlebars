@@ -1,0 +1,199 @@
+<div class="user-status">
+  <p>Welcome, {{username}}</p>
+</div>
+<div class="dashboard-card">
+  <div class="dashboard-message">
+    <h2>Dashboard</h2>
+    <p>Welcome to your dashboard. Here you can manage your posts and comments.</p>
+  </div>
+</div>
+
+{{#if logged_in}}
+  <div class="create-post-container">
+    <button id="create-post-button">Create Post</button>
+  </div>
+
+  <div class="form-container" id="create-post-form-container" style="display: none;">
+    <form id="create-post-form">
+      <h2>Create Post</h2>
+      <div class="form-group">
+        <input type="text" name="title" placeholder="Title" required>
+      </div>
+      <div class="form-group">
+        <textarea name="content" placeholder="Content" required></textarea>
+      </div>
+      <button type="submit">Create Post</button>
+      <p id="post-error-message" style="color: red;"></p>
+    </form>
+  </div>
+{{else}}
+  <div class="form-container">
+    <p>Please <a href="/login">log in</a> or <a href="/signup">sign up</a> to create a post.</p>
+  </div>
+{{/if}}
+
+<div class="posts-container">
+  {{#if posts.length}}
+    {{#each posts}}
+      <div class="post">
+        <h3>{{this.title}}</h3>
+        <p>{{this.content}}</p>
+        <p>Posted by <span class="username">{{this.user.username}}</span> on {{format_date this.createdAt}}</p>
+        
+        {{#ifCond this.user.id ../logged_in_user_id}}
+          <button class="edit-button" data-post-id="{{this.id}}">Edit</button>
+          <button class="delete-button" data-post-id="{{this.id}}">Delete</button>
+        {{/ifCond}}
+
+        <button class="comment-button" data-post-id="{{this.id}}">Comment</button>
+        <div class="comment-form-container" id="comment-form-{{this.id}}" style="display: none;">
+          <form data-post-id="{{this.id}}" class="comment-form">
+            <div class="form-group">
+              <textarea name="content" placeholder="Write a comment..." required></textarea>
+            </div>
+            <button type="submit">Post Comment</button>
+            <p class="comment-error-message" style="color: red;"></p>
+          </form>
+        </div>
+        <div class="comments-container" id="comments-container-{{this.id}}">
+          {{#each this.comments}}
+            <div class="comment">
+              <p>{{this.comment_text}}</p>
+              <p>Posted by <span class="username">{{this.user.username}}</span> on {{format_date this.createdAt}}</p>
+            </div>
+          {{/each}}
+        </div>
+      </div>
+    {{/each}}
+  {{else}}
+    <p>No posts found</p>
+  {{/if}}
+</div>
+
+<script>
+document.querySelectorAll('.comment-button').forEach(button => {
+  button.addEventListener('click', (event) => {
+    const postId = event.target.getAttribute('data-post-id');
+    const formContainer = document.getElementById(`comment-form-${postId}`);
+    formContainer.style.display = 'block';
+  });
+});
+
+document.querySelectorAll('.comment-form').forEach(form => {
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const postId = event.target.getAttribute('data-post-id');
+    const content = event.target.content.value;
+
+    const response = await fetch(`/api/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ post_id: postId, comment_text: content })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      location.reload();
+    } else {
+      const errorMessage = event.target.querySelector('.comment-error-message');
+      errorMessage.textContent = data.message || 'Failed to post comment';
+    }
+  });
+});
+
+document.getElementById('create-post-button').addEventListener('click', () => {
+  const formContainer = document.getElementById('create-post-form-container');
+  formContainer.style.display = 'block';
+});
+
+document.getElementById('create-post-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+
+  const title = event.target.title.value;
+  const content = event.target.content.value;
+
+  const response = await fetch('/api/posts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, content })
+  });
+
+  const data = await response.json();
+
+  if (response.ok) {
+    location.reload();
+  } else {
+    const errorMessage = document.getElementById('post-error-message');
+    errorMessage.textContent = data.message || 'Failed to create post';
+  }
+});
+
+document.querySelectorAll('.delete-button').forEach(button => {
+  button.addEventListener('click', async (event) => {
+    const postId = event.target.getAttribute('data-post-id');
+
+    const response = await fetch(`/api/posts/${postId}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      location.reload();
+    } else {
+      alert(data.message || 'Failed to delete post');
+    }
+  });
+});
+
+document.querySelectorAll('.edit-button').forEach(button => {
+  button.addEventListener('click', async (event) => {
+    const postId = event.target.getAttribute('data-post-id');
+    // Fetch the post data and populate a form for editing
+    const response = await fetch(`/api/posts/${postId}`);
+    const post = await response.json();
+
+    // Populate the edit form (create and display an edit form)
+    const editFormHtml = `
+      <div class="form-container" id="edit-post-form-container">
+        <form id="edit-post-form" data-post-id="${postId}">
+          <h2>Edit Post</h2>
+          <div class="form-group">
+            <input type="text" name="title" placeholder="Title" value="${post.title}" required>
+          </div>
+          <div class="form-group">
+            <textarea name="content" placeholder="Content" required>${post.content}</textarea>
+          </div>
+          <button type="submit">Update Post</button>
+          <p id="edit-error-message" style="color: red;"></p>
+        </form>
+      </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', editFormHtml);
+
+    document.getElementById('edit-post-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const title = event.target.title.value;
+      const content = event.target.content.value;
+
+      const updateResponse = await fetch(`/api/posts/${postId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, content })
+      });
+
+      const updateData = await updateResponse.json();
+
+      if (updateResponse.ok) {
+        location.reload();
+      } else {
+        const errorMessage = document.getElementById('edit-error-message');
+        errorMessage.textContent = updateData.message || 'Failed to update post';
+      }
+    });
+  });
+});
+</script>

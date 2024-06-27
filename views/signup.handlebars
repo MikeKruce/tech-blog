@@ -1,0 +1,42 @@
+<div class="form-container">
+  <form id="signup-form">
+    <h2>Sign Up</h2>
+    <div class="form-group">
+      <input type="text" name="username" placeholder="Username" required>
+    </div>
+    <div class="form-group">
+      <input type="email" name="email" placeholder="Email" required>
+    </div>
+    <div class="form-group">
+      <input type="password" name="password" placeholder="Password" required>
+    </div>
+    <button type="submit">Sign Up</button>
+    <p id="signup-error-message" style="color: red;"></p>
+  </form>
+  <p>Already have an account? <a href="/login">Login here</a></p>
+</div>
+
+<script>
+document.getElementById('signup-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  
+  const username = event.target.username.value;
+  const email = event.target.email.value;
+  const password = event.target.password.value;
+
+  const response = await fetch('/api/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, email, password })
+  });
+
+  const data = await response.json();
+  
+  if (response.ok) {
+    window.location.replace('/dashboard');
+  } else {
+    const errorMessage = document.getElementById('signup-error-message');
+    errorMessage.textContent = data.message || 'Signup failed. Please try again.';
+  }
+});
+</script>

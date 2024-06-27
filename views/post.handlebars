@@ -1,0 +1,19 @@
+<div>
+  <h2>{{title}}</h2>
+  <p>{{content}}</p>
+  <p>Posted by {{user.username}}</p>
+</div>
+
+{{#if logged_in}}
+  <form action="/api/comments" method="POST">
+    <textarea name="comment_text" placeholder="Add a comment"></textarea>
+    <button type="submit">Post Comment</button>
+  </form>
+{{/if}}
+
+{{#each comments}}
+  <div>
+    <p>{{this.comment_text}}</p>
+    <p>Commented by {{this.user.username}}</p>
+  </div>
+{{/each}}
